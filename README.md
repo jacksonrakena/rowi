@@ -2,7 +2,7 @@
 
 <h1>Abyssal Command Engine (ACE)</h1>
 
-![badge](https://github.com/abyssal/command-engine/workflows/Gradle/badge.svg)
+![badge](https://github.com/abyssal/command-engine/workflows/Gradle/badge.svg) [![CircleCI](https://img.shields.io/circleci/build/github/abyssal/command-engine)](https://circleci.com/gh/abyssal/command-engine)
 
 <code>com.abyssaldev.commands</code>
 
