@@ -5,9 +5,9 @@ name: Gradle
 
 on:
   push:
-    branches: [ v16-kt ]
+    branches: [ main ]
   pull_request:
-    branches: [ v16-kt ]
+    branches: [ main ]
 
 jobs:
   build:
