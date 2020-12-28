@@ -31,10 +31,9 @@ class ExampleModule: CommandModule() {
 }
 
 // Bot.kt
-val engine = CommandEngineBuilder().apply {
+val engine = CommandEngine.Builder().apply {
   setPrefixStrategy(StaticPrefixStrategy("!"))
   addModules(ExampleModule())
-  discoverCommands(CommandDiscoveryMode.Annotations)
 }.build()
 jdaBuilder.addListener(engine)
 ```

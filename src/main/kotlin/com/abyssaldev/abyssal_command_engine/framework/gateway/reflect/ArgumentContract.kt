@@ -2,8 +2,6 @@ package com.abyssaldev.abyssal_command_engine.framework.gateway.reflect
 
 data class SuppliedArgument<T>(val name: String, val value: T)
 
-open class Result(val isSuccess: Boolean, val reason: String?)
-
 interface ArgumentContractable<T> {
     fun evaluateContract(argument: SuppliedArgument<T>) : ArgumentContract.Result<T>
 }
@@ -24,7 +22,7 @@ annotation class ArgumentContract<T: ArgumentContractable<*>> {
         isSuccess: Boolean,
         reason: String?,
         val argument: SuppliedArgument<T>,
-        val contract: ArgumentContractable<T>) : com.abyssaldev.abyssal_command_engine.framework.gateway.reflect.Result(isSuccess, reason) {
+        val contract: ArgumentContractable<T>) : com.abyssaldev.abyssal_command_engine.framework.common.Result(isSuccess, reason) {
         companion object {
             fun <T> success(argument: SuppliedArgument<T>, contract: ArgumentContractable<T>): Result<T> {
                 return Result(true, null, argument, contract)

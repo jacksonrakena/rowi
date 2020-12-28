@@ -9,13 +9,9 @@ import net.dv8tion.jda.api.Permission
 import java.util.*
 import kotlin.reflect.KFunction
 
-class GatewayCommandInternal(
+class GatewayCommandInstance(
     override val name: String,
     override val description: String,
-    val isBotOwnerRestricted: Boolean,
-    val requiredRole: String,
-    val requiredUserPermissions: EnumSet<Permission>,
-    val requiredBotPermissions: EnumSet<Permission>,
     val invoke: KFunction<*>,
     val parentModule: CommandModule,
     val parameters: List<GatewayCommandParameter>) : CommandBase, CommandExecutable<GatewayCommandRequest> {

@@ -1,19 +1,19 @@
 package com.abyssaldev.abyssal_command_engine.framework.gateway
 
-import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandInternal
+import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandInstance
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandModule
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandRequest
 import com.abyssaldev.abyssal_command_engine.framework.common.reflect.Description
 import com.abyssaldev.abyssal_command_engine.framework.common.reflect.Name
-import com.abyssaldev.abyssal_command_engine.framework.common.result.*
-import com.abyssaldev.abyssal_command_engine.framework.gateway.reflect.GatewayCommand
-import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandFailure
+import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommand
 import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandParameter
-import com.abyssaldev.abyssal_command_engine.framework.gateway.event.CommandEngineEventHandler
-import com.abyssaldev.abyssal_command_engine.framework.gateway.event.DefaultCommandEngineEventHandler
 import com.abyssaldev.abyssal_command_engine.framework.gateway.prefix.PrefixStrategy
 import com.abyssaldev.abyssal_command_engine.framework.gateway.prefix.StaticPrefixStrategy
-import com.abyssaldev.abyssal_command_engine.framework.gateway.reflect.Result
+import com.abyssaldev.abyssal_command_engine.framework.common.Result
+import com.abyssaldev.abyssal_command_engine.framework.gateway.results.*
+import com.abyssaldev.abyssal_command_engine.framework.gateway.types.TypeParser
+import com.abyssaldev.abyssal_command_engine.framework.gateway.types.impl.BoolTypeParser
+import com.abyssaldev.abyssal_command_engine.framework.gateway.types.impl.IntTypeParser
 import com.abyssaldev.abyssal_command_engine.util.Loggable
 import com.abyssaldev.abyssal_command_engine.util.getAnnotation
 import com.abyssaldev.abyssal_command_engine.util.getAnnotations
@@ -21,18 +21,14 @@ import com.abyssaldev.abyssal_command_engine.util.trySendMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import net.dv8tion.jda.api.Permission
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import java.util.*
-import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
-import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.jvmErasure
-import kotlin.reflect.typeOf
 
 /**
  * A Discord event listener that can handle commands received over the gateway.
@@ -54,19 +50,14 @@ class CommandEngine private constructor(
     val ownerId: String,
 
     /**
-     * The event handler of this [CommandEngine].
-     */
-    val eventHandler: CommandEngineEventHandler,
-
-    /**
      * The type parsers of this [CommandEngine].
      */
     val typeParsers: List<TypeParser<*>>
 ): Loggable, ListenerAdapter() {
-    private val commands: List<GatewayCommandInternal>
+    private val commands: List<GatewayCommandInstance>
 
     init {
-        val gatewayCommands = mutableListOf<GatewayCommandInternal>()
+        val gatewayCommands = mutableListOf<GatewayCommandInstance>()
         modules.forEach {
             it::class.memberFunctions.forEach { member ->
                 val annot = member.annotations.getAnnotation<GatewayCommand>() ?: return@forEach
@@ -80,17 +71,13 @@ class CommandEngine private constructor(
                         contracts = param.annotations.getAnnotations()
                     )
                 }
-                GatewayCommandInternal(
+                GatewayCommandInstance(
                     name = annot.name,
                     description = annot.description,
-                    isBotOwnerRestricted = annot.isOwnerRestricted,
-                    requiredBotPermissions = EnumSet.noneOf(Permission::class.java)!!,
-                    requiredUserPermissions = EnumSet.noneOf(Permission::class.java)!!,
-                    requiredRole = annot.requiredRole,
                     invoke = member,
                     parentModule = it,
                     parameters = parameters
-                ).apply(gatewayCommands::add).apply(eventHandler::onGatewayCommandRegistered)
+                ).apply(gatewayCommands::add)
             }
         }
         commands = gatewayCommands
@@ -102,7 +89,8 @@ class CommandEngine private constructor(
         }
     }
 
-    suspend fun execute(argsRaw: List<String>, request: GatewayCommandRequest): Result {
+    suspend fun execute(content: String, request: GatewayCommandRequest): Result {
+        val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
         val command = commands.firstOrNull { it.isMatch(commandToken) } ?: return CommandNotFoundResult(commandToken)
         val args = argsRaw.drop(1)
@@ -151,38 +139,23 @@ class CommandEngine private constructor(
         }
     }
 
-    private suspend fun handleMessageReceived(event: MessageReceivedEvent) {
-        if (event.author.isBot) return
 
-        var content = event.message.contentRaw
+    private suspend fun handleMessageReceived(event: MessageReceivedEvent) {
+        handle(event)
+    }
+
+    suspend fun handle(event: MessageReceivedEvent): Result? {
+        if (event.author.isBot) return null
+
+        val content = event.message.contentRaw
         val prefix = prefixStrategy.getPrefix(event.guild)
 
-        if (!content.startsWith(prefix, true)) return
-        content = content.substring(prefix.length)
+        if (!content.startsWith(prefix, true)) return null
 
-        val contentSplit = content.split(" ")
-
-        val request = GatewayCommandRequest(event.guild, event.textChannel, event.member, event.author, contentSplit.drop(1), event.jda, event.message)
-
-        val result = execute(contentSplit, request)
-
-        logger.info(result::class.simpleName!! + " " + (result.reason ?: "No reason"))
-    }
-
-    private fun handleOwnerOnlyCommandError(command: GatewayCommandInternal, call: GatewayCommandRequest) {
-        eventHandler.onGatewayCommandFailure(command, call, GatewayCommandFailure.FailedOwnerRestrictionCheck, "")
-    }
-
-    private fun handleMissingRequiredRole(command: GatewayCommandInternal, call: GatewayCommandRequest, roleId: String) {
-        eventHandler.onGatewayCommandFailure(command, call, GatewayCommandFailure.MissingUserRole, call.guild!!.getRoleById(roleId)?.name ?: "")
-    }
-
-    private fun handleMissingRequiredUserPermissions(command: GatewayCommandInternal, call: GatewayCommandRequest, permissions: EnumSet<Permission>) {
-        eventHandler.onGatewayCommandFailure(command, call, GatewayCommandFailure.MissingUserPermissions, permissions.map { "`${it.name}`" }.joinToString(", "))
-    }
-
-    private fun handleMissingRequiredBotPermissions(command: GatewayCommandInternal, call: GatewayCommandRequest, permissions: EnumSet<Permission>) {
-        eventHandler.onGatewayCommandFailure(command, call, GatewayCommandFailure.MissingBotPermissions, permissions.map { "`${it.name}`" }.joinToString(", "))
+        return execute(
+            content.substring(prefix.length),
+            GatewayCommandRequest(event.guild, event.textChannel, event.member, event.author, event.jda, event.message)
+        )
     }
 
     /**
@@ -195,7 +168,6 @@ class CommandEngine private constructor(
             IntTypeParser(), BoolTypeParser()
         )
         private var ownerId: String = ""
-        private var engineEventHandler: CommandEngineEventHandler = DefaultCommandEngineEventHandler()
 
         /**
          * Registers a type parser for type [T].
@@ -233,14 +205,6 @@ class CommandEngine private constructor(
         }
 
         /**
-         * Sets the [CommandEngineEventHandler] to use.
-         */
-        fun setEventHandler(eventHandler: CommandEngineEventHandler): Builder {
-            this.engineEventHandler = eventHandler
-            return this
-        }
-
-        /**
          * Creates a [CommandEngine] instance from this [CommandEngine.Builder].
          */
         fun build(): CommandEngine {
@@ -249,7 +213,6 @@ class CommandEngine private constructor(
                 prefixStrategy = this.prefixStrategy,
                 modules = this.modules,
                 ownerId = this.ownerId,
-                eventHandler = this.engineEventHandler,
                 typeParsers = this.typeParsers
             )
         }

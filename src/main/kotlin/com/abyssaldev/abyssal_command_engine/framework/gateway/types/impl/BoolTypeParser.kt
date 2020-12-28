@@ -1,19 +1,8 @@
-package com.abyssaldev.abyssal_command_engine.framework.gateway
+package com.abyssaldev.abyssal_command_engine.framework.gateway.types.impl
 
-import com.abyssaldev.abyssal_command_engine.framework.common.result.ParameterTypeParserResult
+import com.abyssaldev.abyssal_command_engine.framework.gateway.results.ParameterTypeParserResult
 import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandParameter
-
-interface TypeParser<T> {
-    fun parse(value: String, parameter: GatewayCommandParameter) : ParameterTypeParserResult<T>
-}
-
-class IntTypeParser : TypeParser<Int> {
-    override fun parse(value: String, parameter: GatewayCommandParameter): ParameterTypeParserResult<Int> {
-        val parsed = value.toIntOrNull()
-            ?: return ParameterTypeParserResult.failure("The provided value was not an integer.", parameter)
-        return ParameterTypeParserResult.success(parsed, parameter)
-    }
-}
+import com.abyssaldev.abyssal_command_engine.framework.gateway.types.TypeParser
 
 class BoolTypeParser: TypeParser<Boolean> {
     val trueValues = listOf("true", "t", "yes", "y", "1", "ye", "ya")
