@@ -10,7 +10,7 @@ repositories {
 val versionObject = Version(major = "1", minor = "0", revision = "0")
 group = "com.abyssaldev"
 version = "$versionObject"
-val archivesBaseName  = "abyssal_commands_engine"
+val archivesBaseName  = "commands"
 
 val jdaVersion = "4.2.0_223"
 val ktorVersion = "1.4.2"

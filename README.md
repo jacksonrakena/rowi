@@ -10,6 +10,8 @@ The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 ## Feature highlights
 - Automatic command discovery through Kotlin annotations
 - Quick development cycle with function commands
+- Automatic type and argument parsing
+  - User can add their own custom type parsers
 - Customisable per-guild, per-channel, per-user, or global prefixes with `PrefixStrategy`
 
 ## A quick example
