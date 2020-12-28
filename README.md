@@ -1,6 +1,10 @@
 <div align="center">
 
-# Abyssal Command Engine (ACE)
+<h1>Abyssal Command Engine (ACE)</h1>
+<code>com.abyssaldev.commands</code>
+<hr />
+
+
 An advanced Kotlin commands framework for [JDA](https://github.com/DV8FromTheWorld/JDA).  
 Automatic module discovery, parameter reading, and slash commands.  
 The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
