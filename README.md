@@ -20,6 +20,7 @@ The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 - (Experimental) Support for slash-commands/interactions
 
 ## A quick example
+ACE is used extensively in [Abyss](abyssal/Abyss), especially in [AbyssEngine.kt](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/AbyssEngine.kt#L93). An example module is available at [AdminModule.kt](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/commands/gateway/AdminModule.kt).
 ```kt
 // ExampleModule.kt
 @Name("Example")
@@ -46,5 +47,6 @@ jdaBuilder.addListener(engine)
 ```
 
 ### Copyright
-Copyright &copy; 2021 Abyssal and contributors, under the [MIT License](LICENSE.md).
-Parts of the Abyssal Command Engine code are taken from [abyssal/Abyss](https://github.com/abyssal/abyss) with permission.
+Copyright &copy; 2021 Abyssal and contributors, under the [MIT License](LICENSE.md).  
+Parts of the Abyssal Command Engine code are taken from [abyssal/Abyss](https://github.com/abyssal/abyss) with permission.  
+Aspects of the Abyssal Command Engine pipeline design are inspired by [Discord.Net.Commands](https://github.com/discord-net/Discord.Net/tree/dev/src/Discord.Net.Commands) and [Qmmands](https://github.com/Quahu/Qmmands).
