@@ -1,6 +1,6 @@
 package com.abyssaldev.abyssal_command_engine.framework.gateway.command
 
-import com.abyssaldev.abyss.framework.gateway.GatewayCommandRequest
+import com.abyssaldev.abyssal_command_engine.framework.gateway.GatewayCommandRequest
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandBase
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandExecutable
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandModule
@@ -18,15 +18,14 @@ class GatewayCommandInternal(
     val requiredBotPermissions: EnumSet<Permission>,
     val invoke: KFunction<*>,
     val parentModule: CommandModule,
-    val parameters: List<GatewayCommandParameter>) : CommandBase,
-    CommandExecutable<GatewayCommandRequest> {
+    val parameters: List<GatewayCommandParameter>) : CommandBase, CommandExecutable<GatewayCommandRequest> {
 
     internal fun isMatch(token: String): Boolean {
         return this.name == token
     }
 
-    override suspend fun invoke(call: GatewayCommandRequest): MessageBuilder? {
-        return invoke.call(parentModule, call) as? MessageBuilder
+    override suspend fun invoke(call: GatewayCommandRequest, args: List<Any>): MessageBuilder? {
+        return invoke.call(parentModule, call, *args.toTypedArray()) as? MessageBuilder
     }
 }
 

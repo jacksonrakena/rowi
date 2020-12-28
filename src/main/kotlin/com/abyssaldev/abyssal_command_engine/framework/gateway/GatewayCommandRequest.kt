@@ -1,4 +1,4 @@
-package com.abyssaldev.abyss.framework.gateway
+package com.abyssaldev.abyssal_command_engine.framework.gateway
 
 import com.abyssaldev.abyssal_command_engine.framework.common.CommandRequest
 import net.dv8tion.jda.api.JDA

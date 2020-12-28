@@ -1,7 +1,7 @@
 package com.abyssaldev.abyssal_command_engine.framework.gateway.event
 
 import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandInternal
-import com.abyssaldev.abyss.framework.gateway.GatewayCommandRequest
+import com.abyssaldev.abyssal_command_engine.framework.gateway.GatewayCommandRequest
 import com.abyssaldev.abyssal_command_engine.framework.gateway.command.GatewayCommandFailure
 
 interface CommandEngineEventHandler {
