@@ -1,6 +1,9 @@
 <div align="center">
 
 <h1>Abyssal Command Engine (ACE)</h1>
+
+![badge](https://github.com/abyssal/command-engine/workflows/Gradle/badge.svg)
+
 <code>com.abyssaldev.commands</code>
 
 
