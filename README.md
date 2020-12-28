@@ -2,7 +2,6 @@
 
 <h1>Abyssal Command Engine (ACE)</h1>
 <code>com.abyssaldev.commands</code>
-<hr />
 
 
 An advanced Kotlin commands framework for [JDA](https://github.com/DV8FromTheWorld/JDA).  
