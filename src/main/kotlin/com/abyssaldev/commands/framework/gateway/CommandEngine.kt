@@ -109,6 +109,7 @@ class CommandEngine private constructor(
                 parsedArgs.add(args[i])
                 continue
             }
+            if (parsedArgs.size == command.parameters.size) continue
             val typeParser = typeParsers.firstOrNull {
                 it::class.supertypes[0].arguments[0].type!!.isSubtypeOf(parameter.type.createType())
             } ?: return ParameterTypeParserMissingResult(parameter.type)
