@@ -23,7 +23,7 @@ The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 - (Experimental) Support for slash-commands/interactions
 
 ## A quick example
-ACE is used extensively in [Abyss](abyssal/Abyss), especially in [AbyssEngine.kt](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/AbyssEngine.kt#L93). An example module is available at [AdminModule.kt](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/commands/gateway/AdminModule.kt).
+ACE is used extensively in [Abyss](abyssal/Abyss), especially in [AbyssEngine](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/AbyssEngine.kt#L93). An example module is available at [AdminModule](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/commands/gateway/AdminModule.kt).
 ```kt
 // ExampleModule.kt
 @Name("Example")
