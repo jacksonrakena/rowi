@@ -10,7 +10,7 @@ abstract class CommandRequest {
     abstract val member: Member?
     abstract val user: User
     abstract val jda: JDA
-    internal abstract val rawArgs: List<String>
+    abstract val rawArgs: List<String>
     open val args: ArgumentSet by lazy { ArgumentSet(rawArgs, this) }
     val botUser: SelfUser by lazy {
         jda.selfUser

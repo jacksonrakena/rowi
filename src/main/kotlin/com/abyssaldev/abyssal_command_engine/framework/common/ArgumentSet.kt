@@ -15,14 +15,16 @@ open class ArgumentSet(internal val argSet: List<String>, internal open val requ
         }
     }
 
-    /*class Named(val argSetNamed: HashMap<String, String>, override val request: CommandRequest) : ArgumentSet(
+    fun asList(): List<String> = argSet
+
+    class Named(val argSetNamed: HashMap<String, String>, override val request: CommandRequest) : ArgumentSet(
         argSetNamed.values.toList(),
         request
     ) {
         fun named(name: String): ArgumentValue.Named {
             return ArgumentValue.Named(argSetNamed[name]!!, request)
         }
-    }*/
+    }
 
     open class ArgumentValue(private val value: String, private val request: CommandRequest) {
         open val member: Member? by lazy {
@@ -59,7 +61,7 @@ open class ArgumentSet(internal val argSet: List<String>, internal open val requ
 
         val string: String = value
 
-       /*class Named(private val value: String, private val request: CommandRequest) : ArgumentValue(value, request) {
+       class Named(private val value: String, private val request: CommandRequest) : ArgumentValue(value, request) {
             override val member: Member by lazy {
                 request.guild!!.getMemberById(value)!!
             }
@@ -87,6 +89,6 @@ open class ArgumentSet(internal val argSet: List<String>, internal open val requ
             override val role: Role by lazy {
                 request.guild!!.getRoleById(value)!!
             }
-        }*/
+        }
     }
 }
