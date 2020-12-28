@@ -12,10 +12,12 @@ The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 
 ## Feature highlights
 - Automatic command discovery through Kotlin annotations
-- Quick development cycle with function commands
+- Quick development cycle & less boilerplate with function commands
+- Custom pre-execution checks with `ArgumentContract`/`CommandContract`
 - Automatic type and argument parsing
   - User can add their own custom type parsers
 - Customisable per-guild, per-channel, per-user, or global prefixes with `PrefixStrategy`
+- (Experimental) Support for slash-commands/interactions
 
 ## A quick example
 ```kt
