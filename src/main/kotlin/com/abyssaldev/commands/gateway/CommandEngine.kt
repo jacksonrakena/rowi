@@ -205,7 +205,6 @@ class CommandEngine private constructor(
                 }
             }
         }
-        logger.info("${result::class.simpleName} ${result.isSuccess} ${result.reason}")
     }
 
     suspend fun handle(event: MessageReceivedEvent): Result? {
