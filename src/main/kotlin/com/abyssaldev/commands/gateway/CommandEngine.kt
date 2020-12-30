@@ -18,8 +18,7 @@ import com.abyssaldev.commands.gateway.contracts.impl.NotBotContract
 import com.abyssaldev.commands.gateway.contracts.impl.NotCallerContract
 import com.abyssaldev.commands.gateway.results.*
 import com.abyssaldev.commands.gateway.types.TypeParser
-import com.abyssaldev.commands.gateway.types.impl.BoolTypeParser
-import com.abyssaldev.commands.gateway.types.impl.IntTypeParser
+import com.abyssaldev.commands.gateway.types.impl.*
 import com.abyssaldev.commands.util.Loggable
 import com.abyssaldev.commands.util.getAnnotation
 import com.abyssaldev.commands.util.getAnnotations
@@ -35,6 +34,7 @@ import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.jvmErasure
+import kotlin.reflect.jvm.jvmName
 
 /**
  * A Discord event listener that can handle commands received over the gateway.
@@ -104,13 +104,18 @@ class CommandEngine private constructor(
         val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
         val command = commands.firstOrNull { it.isMatch(commandToken) } ?: return CommandNotFoundResult(commandToken)
-        val args = argsRaw.drop(1)
+        var args = argsRaw.drop(1)
+
+        // Invocation flags
+        val flags = args.filter {it.startsWith("--") }.map { it.replace("--", "") }
+        request.flags.addAll(flags)
+        args = args.dropLast(flags.size)
 
         // TODO command contracts
 
         // Parameters
         if ((command.parameters.size) > args.size) {
-            return NotEnoughParametersResult(args.size, command.parameters.size)
+            return NotEnoughParametersResult(args.size, command.parameters.size, command)
         }
 
         val parsedArgs = mutableListOf<Any>()
@@ -124,16 +129,23 @@ class CommandEngine private constructor(
             val typeParser = typeParsers.firstOrNull {
                 it::class.supertypes[0].arguments[0].type!!.isSubtypeOf(parameter.type.createType())
             } ?: return ParameterTypeParserMissingResult(parameter.type)
+            if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Matched to type parser `${typeParser::class.qualifiedName}`")
             val parameterValue = args[i]
             try {
-                val parsedValueResult = typeParser.parse(parameterValue, parameter)
+                val parsedValueResult = typeParser.parse(parameterValue, request, parameter)
                 if (!parsedValueResult.isSuccess) return parsedValueResult
                 val parsedValue = parsedValueResult.result!!
+                if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Parsed to value:  `${parsedValue}`")
 
                 for (contractId in parameter.contracts) {
                     val contract = this.argumentContracts[contractId] ?: return ArgumentContractMissingResult(contractId)
                     val contractResult = contract::class.memberFunctions.first { it.name == "evaluateContract" }.call(contract, SuppliedArgument(parameter.name, parsedValue), request) as ArgumentContract.Result<*>
-                    if (!contractResult.isSuccess) return contractResult
+                    if (!contractResult.isSuccess) {
+                        if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Failed contract `${contract::class.qualifiedName}`")
+                        return contractResult
+                    } else if (request.isDebug) {
+                        request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Passed contract `${contract::class.qualifiedName}`")
+                    }
                 }
                 parsedArgs.add(parsedValue)
 
@@ -143,25 +155,50 @@ class CommandEngine private constructor(
         }
 
         // Finalization
-        try {
-            /*val canInvoke = command.canInvoke(request)
-            if (!canInvoke.isNullOrEmpty()) {
-                eventHandler.onGatewayCommandFailure(command, request, GatewayCommandFailure.FailedCanInvokeCheck, canInvoke)
-                return
-            }*/
+        return try {
+            if (request.isDebug) request.channel.trySendMessage("[debug] Invoking command `${command::class.qualifiedName}(name=${command.name})`")
             val message = command.invoke(request, parsedArgs)
             if (message != null) request.channel.trySendMessage(message.build())
-            return Result(true, null)
+            Result(true, null)
         } catch (e: Throwable) {
-            logger.error("Error thrown while processing gateway command ${command.name}", e)
-            request.channel.trySendMessage( "There was an internal error running that command. Try again later.")
-            return CommandExceptionResult(e, command)
+            CommandExceptionResult(e, command)
         }
     }
 
 
     private suspend fun handleMessageReceived(event: MessageReceivedEvent) {
-        handle(event)
+        val result = handle(event) ?: return
+
+        when (result) {
+            is NotEnoughParametersResult -> {
+                event.channel.sendMessage(StringBuilder()
+                    .appendLine(":x: I needed ${result.expectedParameterCount} parameters after `${result.command.name}`, but I only got ${result.suppliedParameterCount}.")
+                    .appendLine()
+                    .appendLine("For reference, here's how to use `${result.command.name}`:")
+                    .appendLine("`" + prefixStrategy.getPrefix(event.guild).toString() + result.command.name + " " + result.command.parameters.joinToString(
+                        " "
+                    ) { c ->
+                        "[" + c.name + "]"
+                    } + "`")
+                    .toString()
+                ).queue()
+            }
+            is ParameterTypeParserResult<*> -> {
+                event.channel.sendMessage(":x: ${result.reason}").queue()
+            }
+            is CommandExceptionResult -> {
+                logger.error("Exception during ${result.command.name}!", result.throwable)
+                event.channel.sendMessage(":x: ${result.reason}").queue()
+            }
+            else -> {
+                when {
+                    !result.isSuccess -> {
+                        event.channel.sendMessage(":x: ${result.reason}").queue()
+                    }
+                }
+            }
+        }
+        logger.info("${result::class.simpleName} ${result.isSuccess} ${result.reason}")
     }
 
     suspend fun handle(event: MessageReceivedEvent): Result? {
@@ -185,7 +222,7 @@ class CommandEngine private constructor(
         private var prefixStrategy: PrefixStrategy = StaticPrefixStrategy("!")
         private var modules: MutableList<CommandModule> = mutableListOf()
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
-            IntTypeParser(), BoolTypeParser()
+            IntTypeParser(), BoolTypeParser(), MemberTypeParser()
         )
         private var ownerId: String = ""
         private var argumentContracts: HashMap<String, ArgumentContractable<*>> = hashMapOf(
