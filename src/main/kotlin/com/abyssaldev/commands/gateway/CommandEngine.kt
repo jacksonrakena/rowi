@@ -28,6 +28,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
+import org.apache.commons.lang3.time.DateFormatUtils
+import java.time.Instant
 import java.util.*
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.createType
@@ -100,6 +102,10 @@ class CommandEngine private constructor(
         }
     }
 
+    fun debugLog(request: GatewayCommandRequest, message: String) {
+        request.channel.trySendMessage(":construction: **debug** ${DateFormatUtils.format(Instant.now().toEpochMilli(), "hh:mm a")} - ${message}")
+    }
+
     suspend fun execute(content: String, request: GatewayCommandRequest): Result {
         val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
@@ -129,22 +135,22 @@ class CommandEngine private constructor(
             val typeParser = typeParsers.firstOrNull {
                 it::class.supertypes[0].arguments[0].type!!.isSubtypeOf(parameter.type.createType())
             } ?: return ParameterTypeParserMissingResult(parameter.type)
-            if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Matched to type parser `${typeParser::class.qualifiedName}`")
+            if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` matched to type parser `${typeParser::class.qualifiedName}`")
             val parameterValue = args[i]
             try {
                 val parsedValueResult = typeParser.parse(parameterValue, request, parameter)
                 if (!parsedValueResult.isSuccess) return parsedValueResult
                 val parsedValue = parsedValueResult.result!!
-                if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Parsed to value:  `${parsedValue}`")
+                if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` parsed to value:  `${parsedValue}`")
 
                 for (contractId in parameter.contracts) {
                     val contract = this.argumentContracts[contractId] ?: return ArgumentContractMissingResult(contractId)
                     val contractResult = contract::class.memberFunctions.first { it.name == "evaluateContract" }.call(contract, SuppliedArgument(parameter.name, parsedValue), request) as ArgumentContract.Result<*>
                     if (!contractResult.isSuccess) {
-                        if (request.isDebug) request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Failed contract `${contract::class.qualifiedName}`")
+                        if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` failed contract `${contract::class.qualifiedName}`")
                         return contractResult
                     } else if (request.isDebug) {
-                        request.channel.trySendMessage("[debug] [parameter `${parameter.name}`] Passed contract `${contract::class.qualifiedName}`")
+                        debugLog(request, "Parameter `${parameter.name}` passed contract `${contract::class.qualifiedName}`")
                     }
                 }
                 parsedArgs.add(parsedValue)
@@ -156,11 +162,12 @@ class CommandEngine private constructor(
 
         // Finalization
         return try {
-            if (request.isDebug) request.channel.trySendMessage("[debug] Invoking command `${command::class.qualifiedName}(name=${command.name})`")
+            if (request.isDebug) debugLog(request, "Invoking command `${command::class.qualifiedName}(name=${command.name})`")
             val message = command.invoke(request, parsedArgs)
             if (message != null) request.channel.trySendMessage(message.build())
             Result(true, null)
         } catch (e: Throwable) {
+            if (request.isDebug) debugLog(request, "Command `${command::class.qualifiedName}(name=${command.name})` threw `${e::class.qualifiedName}`")
             CommandExceptionResult(e, command)
         }
     }
