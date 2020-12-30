@@ -10,6 +10,12 @@ import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
 import com.abyssaldev.commands.gateway.prefix.PrefixStrategy
 import com.abyssaldev.commands.gateway.prefix.StaticPrefixStrategy
 import com.abyssaldev.commands.common.Result
+import com.abyssaldev.commands.gateway.common.SuppliedArgument
+import com.abyssaldev.commands.gateway.contracts.ArgumentContract
+import com.abyssaldev.commands.gateway.contracts.ArgumentContractable
+import com.abyssaldev.commands.gateway.contracts.impl.DefaultArgumentContracts
+import com.abyssaldev.commands.gateway.contracts.impl.NotBotContract
+import com.abyssaldev.commands.gateway.contracts.impl.NotCallerContract
 import com.abyssaldev.commands.gateway.results.*
 import com.abyssaldev.commands.gateway.types.TypeParser
 import com.abyssaldev.commands.gateway.types.impl.BoolTypeParser
@@ -52,7 +58,12 @@ class CommandEngine private constructor(
     /**
      * The type parsers of this [CommandEngine].
      */
-    val typeParsers: List<TypeParser<*>>
+    val typeParsers: List<TypeParser<*>>,
+
+    /**
+     * The available [ArgumentContractable] instances.
+     */
+    val argumentContracts: HashMap<String, ArgumentContractable<*>>
 ): Loggable, ListenerAdapter() {
     private val commands: List<GatewayCommandInstance>
 
@@ -68,7 +79,7 @@ class CommandEngine private constructor(
                         name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
                         description = param.annotations.getAnnotation<Description>()?.description ?: "",
                         type = param.type.jvmErasure,
-                        contracts = param.annotations.getAnnotations()
+                        contracts = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
                     )
                 }
                 GatewayCommandInstance(
@@ -115,9 +126,17 @@ class CommandEngine private constructor(
             } ?: return ParameterTypeParserMissingResult(parameter.type)
             val parameterValue = args[i]
             try {
-                val parsedValue = typeParser.parse(parameterValue, parameter)
-                if (!parsedValue.isSuccess) return parsedValue
-                parsedArgs.add(parsedValue.result!!)
+                val parsedValueResult = typeParser.parse(parameterValue, parameter)
+                if (!parsedValueResult.isSuccess) return parsedValueResult
+                val parsedValue = parsedValueResult.result!!
+
+                for (contractId in parameter.contracts) {
+                    val contract = this.argumentContracts[contractId] ?: return ArgumentContractMissingResult(contractId)
+                    val contractResult = contract::class.memberFunctions.first { it.name == "evaluateContract" }.call(contract, SuppliedArgument(parameter.name, parsedValue), request) as ArgumentContract.Result<*>
+                    if (!contractResult.isSuccess) return contractResult
+                }
+                parsedArgs.add(parsedValue)
+
             } catch (e: Throwable) {
                 return ParameterTypeParserExceptionResult(e, parameter.type)
             }
@@ -169,6 +188,18 @@ class CommandEngine private constructor(
             IntTypeParser(), BoolTypeParser()
         )
         private var ownerId: String = ""
+        private var argumentContracts: HashMap<String, ArgumentContractable<*>> = hashMapOf(
+            DefaultArgumentContracts.NOT_BOT to NotBotContract(),
+            DefaultArgumentContracts.NOT_CALLER to NotCallerContract()
+        )
+
+        /**
+         * Adds the supplied [ArgumentContractable] contracts.
+         */
+        fun addArgumentContracts(argumentContracts: HashMap<String, ArgumentContractable<*>>): Builder {
+            this.argumentContracts.putAll(argumentContracts)
+            return this
+        }
 
         /**
          * Registers a type parser for type [T].
@@ -214,7 +245,8 @@ class CommandEngine private constructor(
                 prefixStrategy = this.prefixStrategy,
                 modules = this.modules,
                 ownerId = this.ownerId,
-                typeParsers = this.typeParsers
+                typeParsers = this.typeParsers,
+                argumentContracts = this.argumentContracts
             )
         }
     }
