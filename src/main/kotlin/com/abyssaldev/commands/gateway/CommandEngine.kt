@@ -36,7 +36,6 @@ import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.jvmErasure
-import kotlin.reflect.jvm.jvmName
 
 /**
  * A Discord event listener that can handle commands received over the gateway.
@@ -174,7 +173,7 @@ class CommandEngine private constructor(
 
 
     private suspend fun handleMessageReceived(event: MessageReceivedEvent) {
-        val result = handle(event) ?: return
+        val result = handleMessage(event) ?: return
 
         when (result) {
             is NotEnoughParametersResult -> {
@@ -207,7 +206,12 @@ class CommandEngine private constructor(
         }
     }
 
-    suspend fun handle(event: MessageReceivedEvent): Result? {
+    /**
+     * Processes a [MessageReceivedEvent] and then returns the result.
+     * This function does not send a message to any channel (excluding
+     * command calls), it only returns what the [CommandEngine] recommends.
+     */
+    suspend fun handleMessage(event: MessageReceivedEvent): Result? {
         if (event.author.isBot) return null
 
         val content = event.message.contentRaw
