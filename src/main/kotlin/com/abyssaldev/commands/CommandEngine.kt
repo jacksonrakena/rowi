@@ -1,4 +1,4 @@
-package com.abyssaldev.commands.gateway
+package com.abyssaldev.commands
 
 import com.abyssaldev.commands.gateway.command.GatewayCommandInstance
 import com.abyssaldev.commands.common.CommandModule
@@ -10,6 +10,7 @@ import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
 import com.abyssaldev.commands.gateway.prefix.PrefixStrategy
 import com.abyssaldev.commands.gateway.prefix.StaticPrefixStrategy
 import com.abyssaldev.commands.common.Result
+import com.abyssaldev.commands.gateway.GatewayCommandRequest
 import com.abyssaldev.commands.gateway.common.SuppliedArgument
 import com.abyssaldev.commands.gateway.contracts.ArgumentContract
 import com.abyssaldev.commands.gateway.contracts.ArgumentContractable
@@ -67,6 +68,7 @@ class CommandEngine private constructor(
     val argumentContracts: HashMap<String, ArgumentContractable<*>>
 ): Loggable, ListenerAdapter() {
     private val commands: List<GatewayCommandInstance>
+    private val adapter = CommandEngineAdapter(this)
 
     init {
         val gatewayCommands = mutableListOf<GatewayCommandInstance>()
@@ -95,16 +97,40 @@ class CommandEngine private constructor(
         commands = gatewayCommands
     }
 
-    override fun onMessageReceived(event: MessageReceivedEvent) {
-        GlobalScope.launch(Dispatchers.Default) {
-            handleMessageReceived(event)
-        }
-    }
+    override fun onMessageReceived(event: MessageReceivedEvent) = adapter.onMessageReceived(event)
 
     fun debugLog(request: GatewayCommandRequest, message: String) {
         request.channel.trySendMessage(":construction: **debug** ${DateFormatUtils.format(Instant.now().toEpochMilli(), "hh:mm a")} - ${message}")
     }
 
+    /**
+     * Processes a [MessageReceivedEvent] (including prefixes), and then
+     * returns the result. This function does not send a message to any
+     * channel (excluding command calls), it only returns what
+     * the [CommandEngine] recommends. If you want [CommandEngine] to handle
+     * prefixes, add [CommandEngine] to your [ListenerAdapter]
+     * in [net.dv8tion.jda.api.JDABuilder].
+     */
+    suspend fun handleMessage(event: MessageReceivedEvent): Result? {
+        if (event.author.isBot) return null
+
+        val content = event.message.contentRaw
+        val prefix = prefixStrategy.getPrefix(event.guild)
+
+        if (!content.startsWith(prefix, true)) return null
+
+        return execute(
+            content.substring(prefix.length),
+            GatewayCommandRequest(event.guild, event.textChannel, event.member, event.author, event.jda, event.message)
+        )
+    }
+
+    /**
+     * Executes a command based on an input [String] and surrounding [GatewayCommandRequest] and returns the [Result].
+     * This method assumes that the prefix has been removed from [content]. If you want [CommandEngine] to handle
+     * prefixes, add [CommandEngine] to your [ListenerAdapter] in [net.dv8tion.jda.api.JDABuilder], or use the higher-level
+     * method [handleMessage].
+     */
     suspend fun execute(content: String, request: GatewayCommandRequest): Result {
         val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
@@ -114,7 +140,9 @@ class CommandEngine private constructor(
         // Invocation flags
         val flags = args.filter {it.startsWith("--") }.map { it.replace("--", "") }
         request.flags.addAll(flags)
-        args = args.dropLast(flags.size)
+        if (flags.isNotEmpty()) {
+            args = args.filter { !it.startsWith("--") } // a hack, but sue me
+        }
 
         // TODO command contracts
 
@@ -171,60 +199,6 @@ class CommandEngine private constructor(
         }
     }
 
-
-    private suspend fun handleMessageReceived(event: MessageReceivedEvent) {
-        val result = handleMessage(event) ?: return
-
-        when (result) {
-            is NotEnoughParametersResult -> {
-                event.channel.sendMessage(StringBuilder()
-                    .appendLine(":x: I needed ${result.expectedParameterCount} parameters after `${result.command.name}`, but I only got ${result.suppliedParameterCount}.")
-                    .appendLine()
-                    .appendLine("For reference, here's how to use `${result.command.name}`:")
-                    .appendLine("`" + prefixStrategy.getPrefix(event.guild).toString() + result.command.name + " " + result.command.parameters.joinToString(
-                        " "
-                    ) { c ->
-                        "[" + c.name + "]"
-                    } + "`")
-                    .toString()
-                ).queue()
-            }
-            is ParameterTypeParserResult<*> -> {
-                event.channel.sendMessage(":x: ${result.reason}").queue()
-            }
-            is CommandExceptionResult -> {
-                logger.error("Exception during ${result.command.name}!", result.throwable)
-                event.channel.sendMessage(":x: ${result.reason}").queue()
-            }
-            else -> {
-                when {
-                    !result.isSuccess -> {
-                        event.channel.sendMessage(":x: ${result.reason}").queue()
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Processes a [MessageReceivedEvent] and then returns the result.
-     * This function does not send a message to any channel (excluding
-     * command calls), it only returns what the [CommandEngine] recommends.
-     */
-    suspend fun handleMessage(event: MessageReceivedEvent): Result? {
-        if (event.author.isBot) return null
-
-        val content = event.message.contentRaw
-        val prefix = prefixStrategy.getPrefix(event.guild)
-
-        if (!content.startsWith(prefix, true)) return null
-
-        return execute(
-            content.substring(prefix.length),
-            GatewayCommandRequest(event.guild, event.textChannel, event.member, event.author, event.jda, event.message)
-        )
-    }
-
     /**
      * A builder pattern for [CommandEngine] instances.
      */
@@ -232,7 +206,7 @@ class CommandEngine private constructor(
         private var prefixStrategy: PrefixStrategy = StaticPrefixStrategy("!")
         private var modules: MutableList<CommandModule> = mutableListOf()
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
-            IntTypeParser(), BoolTypeParser(), MemberTypeParser()
+            IntTypeParser(), BoolTypeParser(), MemberTypeParser(), LongTypeParser()
         )
         private var ownerId: String = ""
         private var argumentContracts: HashMap<String, ArgumentContractable<*>> = hashMapOf(
