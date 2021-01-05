@@ -7,7 +7,7 @@
 <code>com.abyssaldev.rowi</code>
 
 A Kotlin framework for building platform-independent command responders.  
-Automatic module discovery, parameter/type reading, and heavy customization.
+Automatic module discovery, parameter/type reading, and heavy customization.  
 The brains behind the [Abyss](https://github.com/abyssal/abyss) Discord bot.  
 Named after the [Okarito kiwi.](https://en.wikipedia.org/wiki/Okarito_kiwi)
 
