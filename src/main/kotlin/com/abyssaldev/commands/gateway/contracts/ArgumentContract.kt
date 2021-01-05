@@ -3,6 +3,7 @@ package com.abyssaldev.commands.gateway.contracts
 import com.abyssaldev.commands.gateway.common.SuppliedArgument
 import com.abyssaldev.commands.gateway.contracts.impl.NotBotContract
 
+@Repeatable
 annotation class ArgumentContract(val contractId: String) {
     class Result<T>(
         isSuccess: Boolean,

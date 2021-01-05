@@ -10,6 +10,7 @@ import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
 import com.abyssaldev.commands.gateway.prefix.PrefixStrategy
 import com.abyssaldev.commands.gateway.prefix.StaticPrefixStrategy
 import com.abyssaldev.commands.common.Result
+import com.abyssaldev.commands.common.reflect.Remainder
 import com.abyssaldev.commands.gateway.GatewayCommandRequest
 import com.abyssaldev.commands.gateway.common.SuppliedArgument
 import com.abyssaldev.commands.gateway.contracts.ArgumentContract
@@ -84,6 +85,7 @@ class CommandEngine private constructor(
                 val parameters = member.parameters.filter { param ->
                     param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
                 }.map { param ->
+                    logger.info("${param.name ?: "noname"} Param type ${param.type.toString()}")
                     GatewayCommandParameter(
                         name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
                         description = param.annotations.getAnnotation<Description>()?.description ?: "",
@@ -159,8 +161,13 @@ class CommandEngine private constructor(
 
         val parsedArgs = mutableListOf<Any>()
 
-        for ((i, parameter) in command.parameters.withIndex()) {
+        parameterParseLoop@ for ((i, parameter) in command.parameters.withIndex()) {
             if (parameter.type == String::class) {
+                if (parameter.type.annotations.getAnnotation<Remainder>() != null) {
+                    val remainderArg = args.subList(i, args.size).joinToString(" ")
+                    parsedArgs.add(remainderArg)
+                    break@parameterParseLoop
+                }
                 parsedArgs.add(args[i])
                 continue
             }
