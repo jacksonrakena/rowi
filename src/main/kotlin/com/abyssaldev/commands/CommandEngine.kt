@@ -7,8 +7,6 @@ import com.abyssaldev.commands.common.reflect.Description
 import com.abyssaldev.commands.common.reflect.Name
 import com.abyssaldev.commands.gateway.command.GatewayCommand
 import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
-import com.abyssaldev.commands.gateway.prefix.PrefixStrategy
-import com.abyssaldev.commands.gateway.prefix.StaticPrefixStrategy
 import com.abyssaldev.commands.common.Result
 import com.abyssaldev.commands.common.reflect.Remainder
 import com.abyssaldev.commands.gateway.GatewayCommandRequest
@@ -44,11 +42,6 @@ import kotlin.reflect.jvm.jvmErasure
  */
 class CommandEngine private constructor(
     /**
-     * The current [PrefixStrategy].
-     */
-    val prefixStrategy: PrefixStrategy,
-
-    /**
      * The [CommandModule]s in use by this engine.
      */
     val modules: List<CommandModule>,
@@ -66,16 +59,9 @@ class CommandEngine private constructor(
     /**
      * The available [ArgumentContractable] instances.
      */
-    val argumentContracts: HashMap<String, ArgumentContractable<*>>,
-
-    /**
-     * Sets whether to respond to prefix calls with a "command not found"
-     * message.
-     */
-    val showCommandNotFoundError: Boolean
+    val argumentContracts: HashMap<String, ArgumentContractable<*>>
 ): Loggable, ListenerAdapter() {
     private val commands: List<GatewayCommandInstance>
-    private val adapter = CommandEngineAdapter(this)
 
     init {
         val gatewayCommands = mutableListOf<GatewayCommandInstance>()
@@ -105,41 +91,11 @@ class CommandEngine private constructor(
         commands = gatewayCommands
     }
 
-    override fun onMessageReceived(event: MessageReceivedEvent) = adapter.onMessageReceived(event)
-
-    fun debugLog(request: GatewayCommandRequest, message: String) {
-        request.channel.trySendMessage(":construction: **debug** ${DateFormatUtils.format(Instant.now().toEpochMilli(), "hh:mm a")} - ${message}")
-    }
-
-    /**
-     * Processes a [MessageReceivedEvent] (including prefixes), and then
-     * returns the result. This function does not send a message to any
-     * channel (excluding command calls), it only returns what
-     * the [CommandEngine] recommends. If you want [CommandEngine] to handle
-     * prefixes, add [CommandEngine] to your [ListenerAdapter]
-     * in [net.dv8tion.jda.api.JDABuilder].
-     */
-    suspend fun handleMessage(event: MessageReceivedEvent): Result? {
-        if (event.author.isBot) return null
-
-        val content = event.message.contentRaw
-        val prefix = prefixStrategy.getPrefix(event.guild)
-
-        if (!content.startsWith(prefix, true)) return null
-
-        return execute(
-            content.substring(prefix.length),
-            GatewayCommandRequest(event.guild, event.textChannel, event.member, event.author, event.jda, event.message)
-        )
-    }
-
     /**
      * Executes a command based on an input [String] and surrounding [GatewayCommandRequest] and returns the [Result].
-     * This method assumes that the prefix has been removed from [content]. If you want [CommandEngine] to handle
-     * prefixes, add [CommandEngine] to your [ListenerAdapter] in [net.dv8tion.jda.api.JDABuilder], or use the higher-level
-     * method [handleMessage].
+     * This method assumes that the prefix has been removed from [content].
      */
-    suspend fun execute(content: String, request: GatewayCommandRequest): Result {
+    suspend fun executeSuspending(content: String, request: GatewayCommandRequest): Result {
         val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
         val command = commands.firstOrNull { it.isMatch(commandToken) } ?: return CommandNotFoundResult(commandToken)
@@ -175,22 +131,17 @@ class CommandEngine private constructor(
             val typeParser = typeParsers.firstOrNull {
                 it::class.supertypes[0].arguments[0].type!!.isSubtypeOf(parameter.type.createType())
             } ?: return ParameterTypeParserMissingResult(parameter.type)
-            if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` matched to type parser `${typeParser::class.qualifiedName}`")
             val parameterValue = args[i]
             try {
                 val parsedValueResult = typeParser.parse(parameterValue, request, parameter)
                 if (!parsedValueResult.isSuccess) return parsedValueResult
                 val parsedValue = parsedValueResult.result!!
-                if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` parsed to value:  `${parsedValue}`")
 
                 for (contractId in parameter.contracts) {
                     val contract = this.argumentContracts[contractId] ?: return ArgumentContractMissingResult(contractId)
                     val contractResult = contract::class.memberFunctions.first { it.name == "evaluateContract" }.call(contract, SuppliedArgument(parameter.name, parsedValue), request) as ArgumentContract.Result<*>
                     if (!contractResult.isSuccess) {
-                        if (request.isDebug) debugLog(request, "Parameter `${parameter.name}` failed contract `${contract::class.qualifiedName}`")
                         return contractResult
-                    } else if (request.isDebug) {
-                        debugLog(request, "Parameter `${parameter.name}` passed contract `${contract::class.qualifiedName}`")
                     }
                 }
                 parsedArgs.add(parsedValue)
@@ -202,12 +153,10 @@ class CommandEngine private constructor(
 
         // Finalization
         return try {
-            if (request.isDebug) debugLog(request, "Invoking command `${command::class.qualifiedName}(name=${command.name})`")
             val message = command.invoke(request, parsedArgs)
             if (message != null) request.channel.trySendMessage(message.build())
             Result(true, null)
         } catch (e: Throwable) {
-            if (request.isDebug) debugLog(request, "Command `${command::class.qualifiedName}(name=${command.name})` threw `${e::class.qualifiedName}`")
             CommandExceptionResult(e, command)
         }
     }
@@ -216,7 +165,6 @@ class CommandEngine private constructor(
      * A builder pattern for [CommandEngine] instances.
      */
     class Builder {
-        private var prefixStrategy: PrefixStrategy = StaticPrefixStrategy("!")
         private var modules: MutableList<CommandModule> = mutableListOf()
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
             IntTypeParser(), BoolTypeParser(), MemberTypeParser(), LongTypeParser()
@@ -255,15 +203,6 @@ class CommandEngine private constructor(
         }
 
         /**
-         * Sets the prefix strategy for the resulting [CommandEngine].
-         * Defaults to a [StaticPrefixStrategy] with prefix `!`.
-         */
-        fun setPrefixStrategy(prefixStrategy: PrefixStrategy): Builder {
-            this.prefixStrategy = prefixStrategy
-            return this
-        }
-
-        /**
          * Adds the supplied [CommandModule] to the resulting [CommandEngine].
          * These modules will be searched for commands.
          */
@@ -287,12 +226,10 @@ class CommandEngine private constructor(
         fun build(): CommandEngine {
             if (this.ownerId.isEmpty()) throw IllegalArgumentException("CommandEngine.Builder.ownerId is a required property.")
             return CommandEngine(
-                prefixStrategy = this.prefixStrategy,
                 modules = this.modules,
                 ownerId = this.ownerId,
                 typeParsers = this.typeParsers,
-                argumentContracts = this.argumentContracts,
-                showCommandNotFoundError = this.showCommandNotFoundError
+                argumentContracts = this.argumentContracts
             )
         }
     }

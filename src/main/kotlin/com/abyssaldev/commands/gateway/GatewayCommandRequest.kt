@@ -4,19 +4,38 @@ import com.abyssaldev.commands.common.CommandRequest
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.*
 
-class GatewayCommandRequest(
-    override val guild: Guild?,
-    override val channel: TextChannel,
-    override val member: Member?,
-    override val user: User,
-    override val jda: JDA,
+open class GatewayCommandRequest(
     val message: Message,
     val flags: MutableList<String> = mutableListOf()
 ): CommandRequest() {
     override val rawArgs = listOf<String>()
 
-    val isDebug
-        get() = flags.contains("debug")
+    override val guild: Guild? by lazy {
+        if (channel is TextChannel) {
+            (channel as TextChannel).guild
+        } else {
+            null
+        }
+    }
+
+    override val user: User by lazy {
+        message.author
+    }
+
+    override val channel: MessageChannel by lazy {
+        message.channel
+    }
+
+    override val member: Member? by lazy {
+        message.member
+    }
+
+    override val jda: JDA
+        get() = channel.jda
+
+    val isDebug: Boolean by lazy {
+        flags.contains("debug")
+    }
 
     val environment: Environment
         get() {

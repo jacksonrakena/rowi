@@ -7,7 +7,7 @@
 <code>com.abyssaldev.commands</code>
 
 
-An advanced Kotlin commands framework for [JDA](https://github.com/DV8FromTheWorld/JDA).  
+A [JDA](https://github.com/DV8FromTheWorld/JDA) Kotlin commands framework for building pipeline-based, scalable Discord bots.  
 Automatic module discovery, parameter reading, and slash commands.  
 The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 
@@ -19,7 +19,6 @@ The brains behind the [Abyss](https://github.com/abyssal/abyss) bot project.
 - Custom pre-execution checks with `ArgumentContract`/`CommandContract`
 - Automatic type and argument parsing
   - User can add their own custom type parsers
-- Customisable per-guild, per-channel, per-user, or global prefixes with `PrefixStrategy`
 - (Experimental) Support for slash-commands/interactions
 
 ## A quick example
@@ -41,12 +40,27 @@ class ExampleModule: CommandModule() {
   }
 }
 
+class Listener(val engine: CommandEngine) : ListenerAdapter() {
+  override fun onMessageReceived(event: MessageReceivedEvent) {
+    GlobalScope.launch {
+      if (!event.message.contentRaw.startsWith(prefix, ignoreCase = true)) return
+      val result = engine.executeSuspending(
+        event.message.contentRaw.substring(prefix.length),
+        GatewayCommandRequest(event.message)
+      )
+      
+      if (!result.isSuccess) {
+        event.channel.sendMessage(result.reason).queue()
+      }
+    }
+  }
+}
+
 // Bot.kt
 val engine = CommandEngine.Builder().apply {
-  setPrefixStrategy(StaticPrefixStrategy("!"))
   addModules(ExampleModule())
 }.build()
-jdaBuilder.addListener(engine)
+jdaBuilder.addListener(Listener(engine))
 ```
 
 ### Copyright
