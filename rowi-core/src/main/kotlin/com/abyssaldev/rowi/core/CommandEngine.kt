@@ -19,6 +19,7 @@ import com.abyssaldev.rowi.core.util.getAnnotation
 import com.abyssaldev.rowi.core.util.getAnnotations
 import java.util.*
 import kotlin.reflect.KParameter
+import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberFunctions
@@ -41,36 +42,15 @@ class CommandEngine private constructor(
     /**
      * The available [ArgumentContractable] instances.
      */
-    val argumentContracts: HashMap<String, ArgumentContractable<*>>
-): Loggable {
-    private val commands: List<CommandInstance>
+    val argumentContracts: HashMap<String, ArgumentContractable<*>>,
 
-    init {
-        val gatewayCommands = mutableListOf<CommandInstance>()
-        modules.forEach {
-            it::class.memberFunctions.forEach { member ->
-                val annot = member.annotations.getAnnotation<Command>() ?: return@forEach
-                val parameters = member.parameters.filter { param ->
-                    param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
-                }.map { param ->
-                    CommandParameter(
-                        name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
-                        description = param.annotations.getAnnotation<Description>()?.description ?: "",
-                        type = param.type.jvmErasure,
-                        contractIds = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
-                    )
-                }
-                CommandInstance(
-                    name = annot.name,
-                    description = annot.description,
-                    invoke = member,
-                    parentModule = it,
-                    parameters = parameters
-                ).apply(gatewayCommands::add)
-            }
-        }
-        commands = gatewayCommands
-    }
+    /**
+     * The available discovery strategies.
+     */
+    val commandDiscoveryStrategies: List<CommandModule.() -> List<CommandInstance>>
+): Loggable {
+    private val commands: List<CommandInstance> =
+        modules.map { module -> this.commandDiscoveryStrategies.map { it(module) }.flatten() }.flatten()
 
     /**
      * Executes a command based on an input [String] and surrounding [CommandRequest] derivative
@@ -146,6 +126,30 @@ class CommandEngine private constructor(
      */
     class Builder {
         private var modules: MutableList<CommandModule> = mutableListOf()
+        private var commandDiscoveryStrategies: MutableList<CommandModule.() -> List<CommandInstance>> = mutableListOf(
+            {
+                this::class.memberFunctions.map { member ->
+                    val annot = member.annotations.getAnnotation<Command>() ?: return@map null
+                    val parameters = member.parameters.filter { param ->
+                        param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
+                    }.map { param ->
+                        CommandParameter(
+                            name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
+                            description = param.annotations.getAnnotation<Description>()?.description ?: "",
+                            type = param.type.jvmErasure,
+                            contractIds = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
+                        )
+                    }
+                    return@map CommandInstance(
+                        name = annot.name,
+                        description = annot.description,
+                        invoke = member,
+                        parentModule = this,
+                        parameters = parameters
+                    )
+                }.filterNotNull()
+            }
+        )
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
             IntTypeParser(), BoolTypeParser(), LongTypeParser()
         )
@@ -157,6 +161,13 @@ class CommandEngine private constructor(
         fun addArgumentContracts(argumentContracts: HashMap<String, ArgumentContractable<*>>): Builder {
             this.argumentContracts.putAll(argumentContracts)
             return this
+        }
+
+        /**
+         * Installs the provided [RowiIntegration].
+         */
+        inline fun <reified Integration: RowiIntegration> install() {
+            Integration::class.createInstance().onInstall(this)
         }
 
         /**
@@ -177,13 +188,23 @@ class CommandEngine private constructor(
         }
 
         /**
+         * Adds the supplied discovery strategy to the resulting [CommandEngine].
+         * These strategies will be used to find commands.
+         */
+        fun addCommandDiscoveryStrategy(strategy: CommandModule.() -> List<CommandInstance>): Builder {
+            this.commandDiscoveryStrategies.add(strategy)
+            return this
+        }
+
+        /**
          * Creates a [CommandEngine] instance from this [CommandEngine.Builder].
          */
         fun build(): CommandEngine {
             return CommandEngine(
                 modules = this.modules,
                 typeParsers = this.typeParsers,
-                argumentContracts = this.argumentContracts
+                argumentContracts = this.argumentContracts,
+                commandDiscoveryStrategies = this.commandDiscoveryStrategies
             )
         }
     }

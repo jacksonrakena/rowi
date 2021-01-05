@@ -10,7 +10,7 @@ import net.dv8tion.jda.api.entities.Member
 
 class NotBotContract: ArgumentContractable<Member> {
     companion object {
-        val id = "not-bot"
+        const val id = "not-bot"
     }
     override fun evaluateContract(
         argument: SuppliedArgument<Member>,

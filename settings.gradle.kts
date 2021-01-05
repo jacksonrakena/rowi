@@ -9,3 +9,4 @@
 
 rootProject.name = "rowi"
 include("rowi-core", "rowi-catnip", "rowi-jda")
+include("rowi-discord-interactions")

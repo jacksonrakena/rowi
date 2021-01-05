@@ -3,14 +3,14 @@ package com.abyssaldev.rowi.core.command
 import com.abyssaldev.rowi.core.*
 import kotlin.reflect.KFunction
 
-class CommandInstance(
+open class CommandInstance(
     override val name: String,
     override val description: String,
     val invoke: KFunction<*>,
     val parentModule: CommandModule,
     val parameters: List<CommandParameter>) : CommandBase, CommandExecutable<CommandRequest> {
 
-    internal fun isMatch(token: String): Boolean {
+    fun isMatch(token: String): Boolean {
         return this.name == token
     }
 
