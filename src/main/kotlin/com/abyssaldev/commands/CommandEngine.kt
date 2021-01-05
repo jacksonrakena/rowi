@@ -71,7 +71,6 @@ class CommandEngine private constructor(
                 val parameters = member.parameters.filter { param ->
                     param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
                 }.map { param ->
-                    logger.info("${param.name ?: "noname"} Param type ${param.type.toString()}")
                     GatewayCommandParameter(
                         name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
                         description = param.annotations.getAnnotation<Description>()?.description ?: "",
