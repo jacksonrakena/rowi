@@ -65,7 +65,13 @@ class CommandEngine private constructor(
     /**
      * The available [ArgumentContractable] instances.
      */
-    val argumentContracts: HashMap<String, ArgumentContractable<*>>
+    val argumentContracts: HashMap<String, ArgumentContractable<*>>,
+
+    /**
+     * Sets whether to respond to prefix calls with a "command not found"
+     * message.
+     */
+    val showCommandNotFoundError: Boolean
 ): Loggable, ListenerAdapter() {
     private val commands: List<GatewayCommandInstance>
     private val adapter = CommandEngineAdapter(this)
@@ -213,6 +219,17 @@ class CommandEngine private constructor(
             DefaultArgumentContracts.NOT_BOT to NotBotContract(),
             DefaultArgumentContracts.NOT_CALLER to NotCallerContract()
         )
+        private var showCommandNotFoundError: Boolean = false
+
+        /**
+         * Sets whether to respond to prefix calls with a "command not found"
+         * message.
+         */
+        fun setShowCommandNotFoundError(showCommandNotFoundError: Boolean = false): Builder {
+            return this.apply {
+                this.showCommandNotFoundError = showCommandNotFoundError
+            }
+        }
 
         /**
          * Adds the supplied [ArgumentContractable] contracts.
@@ -267,7 +284,8 @@ class CommandEngine private constructor(
                 modules = this.modules,
                 ownerId = this.ownerId,
                 typeParsers = this.typeParsers,
-                argumentContracts = this.argumentContracts
+                argumentContracts = this.argumentContracts,
+                showCommandNotFoundError = this.showCommandNotFoundError
             )
         }
     }

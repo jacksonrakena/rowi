@@ -1,6 +1,7 @@
 package com.abyssaldev.commands
 
 import com.abyssaldev.commands.gateway.results.CommandExceptionResult
+import com.abyssaldev.commands.gateway.results.CommandNotFoundResult
 import com.abyssaldev.commands.gateway.results.NotEnoughParametersResult
 import com.abyssaldev.commands.gateway.results.ParameterTypeParserResult
 import com.abyssaldev.commands.util.Loggable
@@ -40,6 +41,11 @@ class CommandEngineAdapter internal constructor(private val commandEngine: Comma
             is CommandExceptionResult -> {
                 logger.error("Exception during ${result.command.name}!", result.throwable)
                 event.channel.sendMessage(":x: ${result.reason}").queue()
+            }
+            is CommandNotFoundResult -> {
+                if (commandEngine.showCommandNotFoundError) {
+                    event.channel.sendMessage(":x: ${result.reason}").queue()
+                }
             }
             else -> {
                 when {
