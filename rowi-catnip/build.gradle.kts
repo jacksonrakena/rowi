@@ -22,4 +22,6 @@ fun getBuild(): String {
 dependencies {
     implementation(project(":rowi-core"))
     implementation("com.mewna:catnip:feature~api-v8-SNAPSHOT")
+
+    implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
 }
