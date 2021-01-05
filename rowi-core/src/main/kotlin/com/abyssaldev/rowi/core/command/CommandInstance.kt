@@ -14,8 +14,11 @@ open class CommandInstance(
         return this.name == token
     }
 
-    override suspend fun invoke(call: CommandRequest, args: List<Any>): CommandResponse {
-        return invoke.call(parentModule, call, *args.toTypedArray()) as CommandResponse
+    override suspend fun invoke(call: CommandRequest, args: List<Any>): CommandResponse? {
+        val invocationCallReturn = invoke.call(parentModule, call, *args.toTypedArray())
+        return if (invocationCallReturn is CommandResponse) {
+            invocationCallReturn
+        } else { null }
     }
 }
 

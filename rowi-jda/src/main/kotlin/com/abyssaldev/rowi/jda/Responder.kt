@@ -4,17 +4,17 @@ import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.MessageBuilder
 
 interface Responder {
-    fun respond(responder: MessageBuilder.() -> Unit): MessageBuilder {
+    fun respond(responder: MessageBuilder.() -> Unit): JdaCommandResponse {
         val builder = MessageBuilder()
         responder(builder)
-        return builder
+        return JdaCommandResponse(true, builder)
     }
 
-    fun respondEmbed(responder: EmbedBuilder.() -> Unit): MessageBuilder = MessageBuilder().embed(responder)
+    fun respondEmbed(responder: EmbedBuilder.() -> Unit): JdaCommandResponse
+        = JdaCommandResponse(true, MessageBuilder().embed(responder))
 
-    fun respond(content: String): MessageBuilder {
-        return MessageBuilder().setContent(content)
-    }
+    fun respond(content: String): JdaCommandResponse
+        = JdaCommandResponse(true, MessageBuilder().setContent(content))
 
     fun MessageBuilder.content(content: String) = apply {
         setContent(content)

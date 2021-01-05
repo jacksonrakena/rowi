@@ -5,6 +5,7 @@ plugins {
 
 repositories {
     jcenter()
+    maven("https://jitpack.io") // mewna/catnip
 }
 
 group = "com.abyssaldev"
@@ -20,4 +21,5 @@ fun getBuild(): String {
 
 dependencies {
     implementation(project(":rowi-core"))
+    implementation("com.mewna:catnip:feature~api-v8-SNAPSHOT")
 }

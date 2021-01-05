@@ -115,6 +115,7 @@ class CommandEngine private constructor(
         // Finalization
         return try {
             val response = command.invoke(request, parsedArgs)
+            response?.completeResponse(request)
             SuccessfulResult(response)
         } catch (e: Throwable) {
             CommandExceptionResult(e, command)
