@@ -1,35 +1,22 @@
-package com.abyssaldev.commands
+package com.abyssaldev.rowi.core
 
-import com.abyssaldev.commands.gateway.command.GatewayCommandInstance
-import com.abyssaldev.commands.common.CommandModule
-import com.abyssaldev.commands.common.CommandRequest
-import com.abyssaldev.commands.common.reflect.Description
-import com.abyssaldev.commands.common.reflect.Name
-import com.abyssaldev.commands.gateway.command.GatewayCommand
-import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
-import com.abyssaldev.commands.common.Result
-import com.abyssaldev.commands.common.reflect.Remainder
-import com.abyssaldev.commands.gateway.GatewayCommandRequest
-import com.abyssaldev.commands.gateway.common.SuppliedArgument
-import com.abyssaldev.commands.gateway.contracts.ArgumentContract
-import com.abyssaldev.commands.gateway.contracts.ArgumentContractable
-import com.abyssaldev.commands.gateway.contracts.impl.DefaultArgumentContracts
-import com.abyssaldev.commands.gateway.contracts.impl.NotBotContract
-import com.abyssaldev.commands.gateway.contracts.impl.NotCallerContract
-import com.abyssaldev.commands.gateway.results.*
-import com.abyssaldev.commands.gateway.types.TypeParser
-import com.abyssaldev.commands.gateway.types.impl.*
-import com.abyssaldev.commands.util.Loggable
-import com.abyssaldev.commands.util.getAnnotation
-import com.abyssaldev.commands.util.getAnnotations
-import com.abyssaldev.commands.util.trySendMessage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent
-import net.dv8tion.jda.api.hooks.ListenerAdapter
-import org.apache.commons.lang3.time.DateFormatUtils
-import java.time.Instant
+import com.abyssaldev.rowi.core.contracts.ArgumentContract
+import com.abyssaldev.rowi.core.contracts.ArgumentContractable
+import com.abyssaldev.rowi.core.command.CommandInstance
+import com.abyssaldev.rowi.core.command.CommandParameter
+import com.abyssaldev.rowi.core.contracts.SuppliedArgument
+import com.abyssaldev.rowi.core.reflect.Command
+import com.abyssaldev.rowi.core.reflect.Description
+import com.abyssaldev.rowi.core.reflect.Name
+import com.abyssaldev.rowi.core.reflect.Remainder
+import com.abyssaldev.rowi.core.results.*
+import com.abyssaldev.rowi.core.types.TypeParser
+import com.abyssaldev.rowi.core.types.impl.BoolTypeParser
+import com.abyssaldev.rowi.core.types.impl.IntTypeParser
+import com.abyssaldev.rowi.core.types.impl.LongTypeParser
+import com.abyssaldev.rowi.core.util.Loggable
+import com.abyssaldev.rowi.core.util.getAnnotation
+import com.abyssaldev.rowi.core.util.getAnnotations
 import java.util.*
 import kotlin.reflect.KParameter
 import kotlin.reflect.full.createType
@@ -38,18 +25,13 @@ import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.jvmErasure
 
 /**
- * A Discord event listener that can handle commands received over the gateway.
+ * A Kotlin framework for building platform-independent command responders.
  */
 class CommandEngine private constructor(
     /**
      * The [CommandModule]s in use by this engine.
      */
     val modules: List<CommandModule>,
-
-    /**
-     * The owner of this [CommandEngine].
-     */
-    val ownerId: String,
 
     /**
      * The type parsers of this [CommandEngine].
@@ -60,25 +42,25 @@ class CommandEngine private constructor(
      * The available [ArgumentContractable] instances.
      */
     val argumentContracts: HashMap<String, ArgumentContractable<*>>
-): Loggable, ListenerAdapter() {
-    private val commands: List<GatewayCommandInstance>
+): Loggable {
+    private val commands: List<CommandInstance>
 
     init {
-        val gatewayCommands = mutableListOf<GatewayCommandInstance>()
+        val gatewayCommands = mutableListOf<CommandInstance>()
         modules.forEach {
             it::class.memberFunctions.forEach { member ->
-                val annot = member.annotations.getAnnotation<GatewayCommand>() ?: return@forEach
+                val annot = member.annotations.getAnnotation<Command>() ?: return@forEach
                 val parameters = member.parameters.filter { param ->
                     param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
                 }.map { param ->
-                    GatewayCommandParameter(
+                    CommandParameter(
                         name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
                         description = param.annotations.getAnnotation<Description>()?.description ?: "",
                         type = param.type.jvmErasure,
-                        contracts = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
+                        contractIds = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
                     )
                 }
-                GatewayCommandInstance(
+                CommandInstance(
                     name = annot.name,
                     description = annot.description,
                     invoke = member,
@@ -91,10 +73,10 @@ class CommandEngine private constructor(
     }
 
     /**
-     * Executes a command based on an input [String] and surrounding [GatewayCommandRequest] and returns the [Result].
-     * This method assumes that the prefix has been removed from [content].
+     * Executes a command based on an input [String] and surrounding [CommandRequest] derivative
+     * and returns the [Result]. This method assumes that the prefix has been removed from [content].
      */
-    suspend fun executeSuspending(content: String, request: GatewayCommandRequest): Result {
+    suspend fun executeSuspending(content: String, request: CommandRequest): Result {
         val argsRaw = content.split(" ")
         val commandToken = argsRaw[0]
         val command = commands.firstOrNull { it.isMatch(commandToken) } ?: return CommandNotFoundResult(commandToken)
@@ -136,7 +118,7 @@ class CommandEngine private constructor(
                 if (!parsedValueResult.isSuccess) return parsedValueResult
                 val parsedValue = parsedValueResult.result!!
 
-                for (contractId in parameter.contracts) {
+                for (contractId in parameter.contractIds) {
                     val contract = this.argumentContracts[contractId] ?: return ArgumentContractMissingResult(contractId)
                     val contractResult = contract::class.memberFunctions.first { it.name == "evaluateContract" }.call(contract, SuppliedArgument(parameter.name, parsedValue), request) as ArgumentContract.Result<*>
                     if (!contractResult.isSuccess) {
@@ -152,9 +134,8 @@ class CommandEngine private constructor(
 
         // Finalization
         return try {
-            val message = command.invoke(request, parsedArgs)
-            if (message != null) request.channel.trySendMessage(message.build())
-            Result(true, null)
+            val response = command.invoke(request, parsedArgs)
+            SuccessfulResult(response)
         } catch (e: Throwable) {
             CommandExceptionResult(e, command)
         }
@@ -166,24 +147,9 @@ class CommandEngine private constructor(
     class Builder {
         private var modules: MutableList<CommandModule> = mutableListOf()
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
-            IntTypeParser(), BoolTypeParser(), MemberTypeParser(), LongTypeParser()
+            IntTypeParser(), BoolTypeParser(), LongTypeParser()
         )
-        private var ownerId: String = ""
-        private var argumentContracts: HashMap<String, ArgumentContractable<*>> = hashMapOf(
-            DefaultArgumentContracts.NOT_BOT to NotBotContract(),
-            DefaultArgumentContracts.NOT_CALLER to NotCallerContract()
-        )
-        private var showCommandNotFoundError: Boolean = false
-
-        /**
-         * Sets whether to respond to prefix calls with a "command not found"
-         * message.
-         */
-        fun setShowCommandNotFoundError(showCommandNotFoundError: Boolean = false): Builder {
-            return this.apply {
-                this.showCommandNotFoundError = showCommandNotFoundError
-            }
-        }
+        private var argumentContracts: HashMap<String, ArgumentContractable<*>> = hashMapOf()
 
         /**
          * Adds the supplied [ArgumentContractable] contracts.
@@ -211,22 +177,11 @@ class CommandEngine private constructor(
         }
 
         /**
-         * Sets the IDs of the owners of the resulting [CommandEngine].
-         * This field is required.
-         */
-        fun setOwnerId(ownerId: String): Builder {
-            this.ownerId = ownerId
-            return this
-        }
-
-        /**
          * Creates a [CommandEngine] instance from this [CommandEngine.Builder].
          */
         fun build(): CommandEngine {
-            if (this.ownerId.isEmpty()) throw IllegalArgumentException("CommandEngine.Builder.ownerId is a required property.")
             return CommandEngine(
                 modules = this.modules,
-                ownerId = this.ownerId,
                 typeParsers = this.typeParsers,
                 argumentContracts = this.argumentContracts
             )

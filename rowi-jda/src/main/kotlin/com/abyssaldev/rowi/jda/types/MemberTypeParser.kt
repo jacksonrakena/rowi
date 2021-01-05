@@ -1,16 +1,17 @@
-package com.abyssaldev.commands.gateway.types.impl
+package com.abyssaldev.rowi.jda.types
 
-import com.abyssaldev.commands.gateway.GatewayCommandRequest
-import com.abyssaldev.commands.gateway.command.GatewayCommandParameter
-import com.abyssaldev.commands.gateway.results.ParameterTypeParserResult
-import com.abyssaldev.commands.gateway.types.TypeParser
+import com.abyssaldev.rowi.jda.JdaCommandRequest
+import com.abyssaldev.rowi.core.CommandRequest
+import com.abyssaldev.rowi.core.command.CommandParameter
+import com.abyssaldev.rowi.core.results.ParameterTypeParserResult
+import com.abyssaldev.rowi.core.types.TypeParser
 import net.dv8tion.jda.api.entities.Member
 
 class MemberTypeParser : TypeParser<Member> {
     fun readLong(
         value: Long,
-        request: GatewayCommandRequest,
-        parameter: GatewayCommandParameter
+        request: JdaCommandRequest,
+        parameter: CommandParameter
     ): ParameterTypeParserResult<Member> {
         val member = request.guild!!.getMemberById(value)
         return if (member != null) {
@@ -22,11 +23,14 @@ class MemberTypeParser : TypeParser<Member> {
 
     override fun parse(
         value: String,
-        request: GatewayCommandRequest,
-        parameter: GatewayCommandParameter
+        request: CommandRequest,
+        parameter: CommandParameter
     ): ParameterTypeParserResult<Member> {
         // Environment check
-        if (request.environment != GatewayCommandRequest.Environment.Guild) {
+        if (request !is JdaCommandRequest) {
+            throw UnsupportedOperationException("A MemberTypeParser was used without a JdaCommandRequest-compatible request context.")
+        }
+        if (request.environment != JdaCommandRequest.Environment.Guild) {
             return ParameterTypeParserResult.failure("This command can only be used in a server.", parameter)
         }
 
