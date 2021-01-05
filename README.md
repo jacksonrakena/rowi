@@ -20,7 +20,7 @@ Named after the [Okarito kiwi.](https://en.wikipedia.org/wiki/Okarito_kiwi)
 - Overridable command executables with `CommandExecutable<*>`
 - Automatic type and argument parsing
   - User can add their own custom type parsers
-- Discord support with `com.abyssaldev.rowi.jda` or `com.abyssaldev.rowi.catnip`
+- Discord support with `com.abyssaldev.rowi.jda` (for [JDA](https://github.com/dv8fromtheworld/jda)) or `com.abyssaldev.rowi.catnip` (for [catnip](https://github.com/mewna/catnip))
 
 ## A quick example
 Rowi is used extensively in [Abyss](abyssal/Abyss), especially in [AbyssEngine](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/AbyssEngine.kt#L93). An example module is available at [AdminModule](https://github.com/abyssal/abyss/blob/v16-kt/src/main/kotlin/com/abyssaldev/abyss/commands/gateway/AdminModule.kt).
