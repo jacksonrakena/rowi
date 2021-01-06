@@ -8,7 +8,8 @@
 
 A Kotlin framework for building platform-independent command responders.  
 Automatic module discovery, parameter/type reading, and heavy customization.  
-The brains behind the [Abyss](https://github.com/abyssal/abyss) Discord bot.  
+The brains behind the [Abyss](https://github.com/abyssal/abyss) Discord bot.   
+Adapted from internal utilities code at GalEdu.
 Named after the [Okarito kiwi.](https://en.wikipedia.org/wiki/Okarito_kiwi)
 
 </div>
