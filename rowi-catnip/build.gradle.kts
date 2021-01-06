@@ -1,6 +1,10 @@
+import org.jetbrains.dokka.gradle.DokkaTask
+import java.net.URL
+
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "1.4.21"
+    id("org.jetbrains.kotlin.jvm")
     `java-library`
+    id("org.jetbrains.dokka")
 }
 
 repositories {
@@ -24,4 +28,22 @@ dependencies {
     implementation("com.mewna:catnip:feature~api-v8-SNAPSHOT")
 
     implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
+}
+
+tasks.withType<DokkaTask>().configureEach {
+    dokkaSourceSets {
+        named("main") {
+            platform.set(org.jetbrains.dokka.Platform.jvm)
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(
+                    URL(
+                        "https://github.com/abyssal/rowi/tree/master/rowi-catnip/" +
+                                "src/main/kotlin"
+                    )
+                )
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
 }

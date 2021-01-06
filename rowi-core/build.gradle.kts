@@ -1,5 +1,9 @@
+import org.jetbrains.dokka.gradle.DokkaTask
+import java.net.URL
+
 plugins {
-    id("org.jetbrains.kotlin.jvm") version "1.4.21"
+    id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.dokka")
     `java-library`
 }
 
@@ -23,4 +27,23 @@ fun getBuild(): String {
         ?: System.getenv("GIT_COMMIT")?.substring(0, 7)
         ?: System.getProperty("GIT_COMMIT")?.substring(0, 7)
         ?: "DEV"
+}
+
+tasks.withType<DokkaTask>().configureEach {
+    dokkaSourceSets {
+        named("main") {
+            //includes.from("Module.md")
+            platform.set(org.jetbrains.dokka.Platform.jvm)
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(
+                    URL(
+                        "https://github.com/abyssal/rowi/tree/master/rowi-core/" +
+                                "src/main/kotlin"
+                    )
+                )
+                remoteLineSuffix.set("#L")
+            }
+        }
+    }
 }
