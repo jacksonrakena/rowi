@@ -24,6 +24,39 @@ Named after the [Okarito kiwi.](https://en.wikipedia.org/wiki/Okarito_kiwi)
   - User can add their own custom type parsers
 - Discord support with `rowi-jda` (for [JDA](https://github.com/dv8fromtheworld/jda)) or `rowi-catnip` (for [catnip](https://github.com/mewna/catnip))
 
+## How do Rowi commands work?
+> **These examples will use Kotlin 1.4.22.**  
+  
+I'm glad you asked! Let's go over a basic Rowi command, using the default `Command` annotation.  
+Firstly, all commands are defined in a class that inherits from `CommandModule` (or a derivative).  
+```kt
+class MyCommandModule : CommandModule()
+```  
+Next, we define a command using `Command` and a function:
+```kt
+@Command(name = "add", description = "Adds two numbers.")
+fun addNumbersCommand(request: CommandRequest, first: Int, second: Int)
+```
+> **Did you see how the parameters work?**  
+> In Rowi, parameters are automatically parsed from the input string and mapped to the function's expected parameters.
+> You can add your own type parsers using `TypeParser<T>`, or install a Rowi integration to add pre-built ones.  
+>   
+> The `request` object contains some data about the command call, and is a required parameter.
+  
+Now we'll make our command actually do something:
+```kt
+println("$first + $second = ${first+second}")
+```
+  
+And then, during initialization, add our module to our Rowi builder:
+```kt
+commandEngineBuilder.addModules(MyCommandModule())
+```
+
+And that's it! Rowi will automatically index your module and register any valid commands, using the inbuilt `Command` strategy.  
+> You can add your own strategies, or use strategies available from integrations.
+
+
 ## A quick tour through Rowi integrations
 ### Core
 [`rowi-core`](https://github.com/abyssal/rowi/tree/main/rowi-core) contains all the library code necessary to make a command responder (shell terminal, chatbot, or utility program) - including type parsers for Java & Kotlin primitives (`Int`, `Long`, `Boolean`, etc), some basic command & argument contracts, and a default command discovery strategy that looks for functions with the `Command` annotation.  
