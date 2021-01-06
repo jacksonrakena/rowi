@@ -65,13 +65,15 @@ And that's it! Rowi will automatically index your module and register any valid 
 [`rowi-jda`](https://github.com/abyssal/rowi/tree/main/rowi-jda) contains some helpful bindings for the [JDA](https://github.com/dv8fromtheworld/jda) Discord library, including type parsers for Discord objects (`Member`, `Role`, `User`, etc), and command & argument contracts that reflect on Discord entity components. All `rowi-jda` contracts and type parsers depend on your custom request type inherting from `JdaCommandResponse`, which contains contextual data like the author of the message, the channel, the guild, and so on.  
   
  
-🚧 [`rowi-catnip`](https://github.com/abyssal/rowi/tree/main/rowi-catnip) aims to achieve the same goals as `rowi-jda`, but mapped to the RxJava-based [catnip](https://github.com/mewna/catnip) Discord library. This library also allows for the automatic discovery and upload of slash-commands/interactions, using the `SlashCommand` annotation.
-
+🚧 [`rowi-catnip`](https://github.com/abyssal/rowi/tree/main/rowi-catnip) aims to achieve the same goals as `rowi-jda`, but mapped to the RxJava-based [catnip](https://github.com/mewna/catnip) Discord library. This library also allows for the automatic discovery and upload of slash-commands/interactions, using the `SlashCommand` annotation.  
 > **rowi-catnip or rowi-jda?**  
 > It's up to you. Both Catnip and JDA are excellent libraries, 
 > but as of writing (January 2021), only `rowi-catnip` has support for slash commands, as the JDA developers
 > are delaying implementation until around March.  
 > [Abyss](https://github.com/abyssal/abyss) (the reference implementation for much of Rowi), utilises `rowi-jda`, but is slowly migrating to `rowi-catnip`.
+   
+### Other platforms
+Officially supported Rowi bindings for [Twitch](https://twitch.tv) and [Slack](https://slack.com) are coming soon! 💫
 
 ### Copyright
 Copyright &copy; 2021 Abyssal and contributors, under the [MIT License](LICENSE.md).  
