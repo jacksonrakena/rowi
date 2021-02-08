@@ -5,6 +5,7 @@ import com.abyssaldev.rowi.core.contracts.ArgumentContractable
 import com.abyssaldev.rowi.core.command.CommandInstance
 import com.abyssaldev.rowi.core.command.CommandParameter
 import com.abyssaldev.rowi.core.contracts.SuppliedArgument
+import com.abyssaldev.rowi.core.parsing.impl.DefaultContentParser
 import com.abyssaldev.rowi.core.reflect.Command
 import com.abyssaldev.rowi.core.reflect.Description
 import com.abyssaldev.rowi.core.reflect.Name
@@ -57,7 +58,7 @@ class CommandEngine private constructor(
      * and returns the [Result]. This method assumes that the prefix has been removed from [content].
      */
     suspend fun executeSuspending(content: String, request: CommandRequest): Result {
-        val argsRaw = content.split(" ")
+        val argsRaw = DefaultContentParser().parse(request)
         val commandToken = argsRaw[0]
         val command = commands.firstOrNull { it.isMatch(commandToken) } ?: return CommandNotFoundResult(commandToken)
         var args = argsRaw.drop(1)

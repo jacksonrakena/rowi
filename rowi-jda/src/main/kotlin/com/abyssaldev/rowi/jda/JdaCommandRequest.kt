@@ -1,5 +1,6 @@
 package com.abyssaldev.rowi.jda
 
+import com.abyssaldev.rowi.core.CommandEngine
 import com.abyssaldev.rowi.core.CommandRequest
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.*
@@ -8,7 +9,8 @@ open class JdaCommandRequest(
     val message: Message,
     override val flags: MutableList<String> = mutableListOf(),
     override val rawArgs: List<String> = listOf(),
-    override var rawString: String = ""
+    override var rawString: String = "",
+    override val engine: CommandEngine
 ): CommandRequest() {
 
     val guild: Guild? by lazy {
