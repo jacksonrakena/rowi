@@ -8,6 +8,8 @@ open class CommandInstance(
     override val description: String,
     val invoke: KFunction<*>,
     val parentModule: CommandModule,
+    val contractIds: List<String>,
+    val moduleInheritedContractIds: List<String>,
     val parameters: List<CommandParameter>) : CommandBase, CommandExecutable<CommandRequest> {
 
     fun isMatch(token: String): Boolean {
@@ -16,9 +18,7 @@ open class CommandInstance(
 
     override suspend fun invoke(call: CommandRequest, args: List<Any>): CommandResponse? {
         val invocationCallReturn = invoke.call(parentModule, call, *args.toTypedArray())
-        return if (invocationCallReturn is CommandResponse) {
-            invocationCallReturn
-        } else { null }
+        return invocationCallReturn as? CommandResponse
     }
 }
 

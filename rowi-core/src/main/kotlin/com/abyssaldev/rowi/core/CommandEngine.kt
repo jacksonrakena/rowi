@@ -1,14 +1,12 @@
 package com.abyssaldev.rowi.core
 
+import com.abyssaldev.rowi.core.command.CommandDiscoveryStrategy
 import com.abyssaldev.rowi.core.contracts.ArgumentContract
 import com.abyssaldev.rowi.core.contracts.ArgumentContractable
 import com.abyssaldev.rowi.core.command.CommandInstance
-import com.abyssaldev.rowi.core.command.CommandParameter
+import com.abyssaldev.rowi.core.command.DefaultDiscoveryStrategies
 import com.abyssaldev.rowi.core.contracts.SuppliedArgument
 import com.abyssaldev.rowi.core.parsing.impl.DefaultContentParser
-import com.abyssaldev.rowi.core.reflect.Command
-import com.abyssaldev.rowi.core.reflect.Description
-import com.abyssaldev.rowi.core.reflect.Name
 import com.abyssaldev.rowi.core.reflect.Remainder
 import com.abyssaldev.rowi.core.results.*
 import com.abyssaldev.rowi.core.types.TypeParser
@@ -17,14 +15,11 @@ import com.abyssaldev.rowi.core.types.impl.IntTypeParser
 import com.abyssaldev.rowi.core.types.impl.LongTypeParser
 import com.abyssaldev.rowi.core.util.Loggable
 import com.abyssaldev.rowi.core.util.getAnnotation
-import com.abyssaldev.rowi.core.util.getAnnotations
 import java.util.*
-import kotlin.reflect.KParameter
 import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSubtypeOf
 import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.jvm.jvmErasure
 
 /**
  * A Kotlin framework for building platform-independent command responders.
@@ -128,30 +123,7 @@ class CommandEngine private constructor(
      */
     class Builder {
         private var modules: MutableList<CommandModule> = mutableListOf()
-        private var commandDiscoveryStrategies: MutableList<CommandModule.() -> List<CommandInstance>> = mutableListOf(
-            {
-                this::class.memberFunctions.map { member ->
-                    val annot = member.annotations.getAnnotation<Command>() ?: return@map null
-                    val parameters = member.parameters.filter { param ->
-                        param.kind == KParameter.Kind.VALUE && param.name != null && !param.type.isSubtypeOf(CommandRequest::class.createType())
-                    }.map { param ->
-                        CommandParameter(
-                            name = param.annotations.getAnnotation<Name>()?.name ?: param.name!!,
-                            description = param.annotations.getAnnotation<Description>()?.description ?: "",
-                            type = param.type.jvmErasure,
-                            contractIds = param.annotations.getAnnotations<ArgumentContract>().map { c -> c.contractId }
-                        )
-                    }
-                    return@map CommandInstance(
-                        name = annot.name,
-                        description = annot.description,
-                        invoke = member,
-                        parentModule = this,
-                        parameters = parameters
-                    )
-                }.filterNotNull()
-            }
-        )
+        private var commandDiscoveryStrategies: MutableList<CommandDiscoveryStrategy> = mutableListOf(DefaultDiscoveryStrategies.commandAnnotationDiscovery)
         private var typeParsers: MutableList<TypeParser<*>> = mutableListOf(
             IntTypeParser(), BoolTypeParser(), LongTypeParser()
         )
