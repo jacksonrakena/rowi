@@ -11,9 +11,7 @@ pluginManagement {
     }
 }
 
-include(":rowi-catnip")
 include(":rowi-core")
-include(":rowi-discord-interactions")
 include(":rowi-jda")
 
 rootProject.name = "rowi"
